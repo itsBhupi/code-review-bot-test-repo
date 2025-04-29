@@ -15,6 +15,7 @@ type UserService struct{}
 
 func (s *UserService) CreateUser(user *User) error {
 	if user.Name == "" {
+		fmt.Println("Error: User name is empty Test")
 		fmt.Printf("Error: User name is empty\n")
 		return errors.New("user name is required")
 	}
