@@ -10,6 +10,7 @@ import (
 )
 
 // Global variables without proper naming convention
+// dummy comments
 var Db *sql.DB
 var auth_token string = "hardcoded_secret_token"
 var MAX_USERS = 1000
