@@ -21,6 +21,8 @@ func authenticateUser(username, password string) error {
 	log.Printf("User authenticated: %s with password: %s", username, password)
 
 	return nil
+
+	// test logs
 }
 
 // VIOLATION: Inconsistent logging formats
