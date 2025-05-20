@@ -15,7 +15,6 @@ var Db *sql.DB
 var auth_token string = "hardcoded_secret_token"
 var MAX_USERS = 1000
 
-// Function doesn't follow camelCase convention
 func GET_all_users(w http.ResponseWriter, r *http.Request) {
 	// No timeout for database query
 	rows, err := Db.Query("SELECT * FROM users") // No pagination, fetching all users at once
