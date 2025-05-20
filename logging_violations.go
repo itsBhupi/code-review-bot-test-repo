@@ -26,6 +26,7 @@ func authenticateUser(username, password string) error {
 }
 
 // VIOLATION: Inconsistent logging formats
+// Regenerate this function
 func processPayment(userID string, amount float64, cardNumber string) error {
 	// VIOLATION: No structured format, missing context
 	log.Println("Processing payment")
