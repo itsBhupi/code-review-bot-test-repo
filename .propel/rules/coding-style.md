@@ -37,3 +37,5 @@ func GoodExample() {
 	}
 }
 ```
+
+<!-- @propel:reference=error-handling.md -->
