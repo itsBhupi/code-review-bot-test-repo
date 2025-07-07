@@ -21,93 +21,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// CodeReviewWorkflow orchestrates the GitHub code review process
-type CodeReviewWorkflow struct {
-	db                    *gorm.DB
-	githubConfig          *clients.GitHubConfig
-	aiConfig              clients.AIConfig
-	repoWorkflowSetting   *models.RepoWorkflowSetting
-	config                *models.CodeReviewConfig
-	codeWorkflowExecution *models.CodeWorkflowExecution
-	prFiles               []clients.PullRequestFile // Store PR files for later use
-	suggestionValidator   *SuggestionValidator      // Validator for suggestion comments
-	knowledgeBaseContext  string                    // Cached knowledge base context for comment validation
-}
-
-type InternalReviewComment struct {
-	clients.PullRequestComment
-	ID               string  `json:"id"`
-	Type             string  `json:"type"`
-	Model            string  `json:"model"`
-	Provider         string  `json:"provider"`
-	RejectionReason  string  `json:"rejection_reason"`
-	RejectionModel   *string `json:"rejection_model"`
-	AcceptanceReason string  `json:"acceptance_reason"`
-	AcceptanceModel  *string `json:"acceptance_model"`
-	AITier           string  `json:"ai_tier,omitempty" validate:"omitempty,oneof=chill balanced assertive"` // Tier classified by LLM (chill, balanced, assertive)
-	Persona          string  `json:"persona,omitempty"`                                                     // Persona that identified this issue (qa_engineer, security_researcher, etc.)
-}
-
-// NewCodeReviewWorkflow creates a new code review workflow
-func NewCodeReviewWorkflow(
-	db *gorm.DB, pemKey, clientID,
-	anthropicApiKey, openaiApiKey, geminiApiKey string, prContext *models.PullRequestContext, repoWorkflowSetting *models.RepoWorkflowSetting) (*CodeReviewWorkflow, error) {
-	// Set up GitHub client
-	githubClient, err := clients.NewGitHubClient(pemKey, clientID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GitHub client: %w", err)
-	}
-
-	token, _, err := githubClient.GetAccessToken(fmt.Sprintf("%d", prContext.InstallationID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
-	githubConfig := clients.NewGitHubConfig(githubClient, token, prContext.Owner, prContext.RepositoryName)
-
-	anthropicModel := clients.DefaultAnthropicModel
-
-	useClaude4Sonnet := models.IsFeatureEnabledForCompany(db, string(types.CodeReviewUseClaude4Sonnet), repoWorkflowSetting.CompanyId)
-	if useClaude4Sonnet {
-		anthropicModel = anthropic.ModelClaude4Sonnet20250514
-	}
-	useClaude4Opus := models.IsFeatureEnabledForCompany(db, string(types.CodeReviewUseClaude4Opus), repoWorkflowSetting.CompanyId)
-	if useClaude4Opus {
-		anthropicModel = anthropic.ModelClaude4Opus20250514
-	}
-
-	aiConfig, err := clients.NewAIConfig(
-		anthropicApiKey, openaiApiKey, geminiApiKey,
-		anthropicModel,
-		clients.DefaultOpenAIModel,
-		clients.DefaultGeminiModel,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AI config: %w", err)
-	}
-
-	config, err := repoWorkflowSetting.GetCodeReviewConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get code review config: %w", err)
-	}
-
-	codeWorkflowExecution, err := repoWorkflowSetting.GetOrCreateCodeWorkflowExecution(db, prContext)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get or create code workflow execution: %w", err)
-	}
-
-	return &CodeReviewWorkflow{
-		db:                    db,
-		githubConfig:          githubConfig,
-		aiConfig:              aiConfig,
-		repoWorkflowSetting:   repoWorkflowSetting,
-		config:                config,
-		codeWorkflowExecution: codeWorkflowExecution,
-		suggestionValidator:   NewSuggestionValidator(),
-		knowledgeBaseContext:  BuildKnowledgeBaseContext(db, repoWorkflowSetting.CompanyId),
-	}, nil
-}
-
 // ReviewPullRequest performs a code review on a specific pull request
 func (w *CodeReviewWorkflow) ReviewPullRequest(prNumber int, contextBuilder *ContextBuilder, checkIfAlreadyApproved bool, checkExistingComments bool) ([]*InternalReviewComment, []clients.PullRequestFile, error) {
 	logger := logging.GetGlobalLogger()
@@ -125,8 +38,6 @@ func (w *CodeReviewWorkflow) ReviewPullRequest(prNumber int, contextBuilder *Con
 		},
 	)
 
-	// Step 1: Get pull request details
-	prDetailsStart := time.Now()
 	prDetails, err := w.GetPullRequestDetails(prNumber)
 	if err != nil {
 		logging.LogWorkflowError(
