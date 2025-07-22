@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
+	"code-review-bot-test-repo/controllers"
+	"code-review-bot-test-repo/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,22 +24,49 @@ func initDB() {
 	fmt.Println("Database connected successfully")
 }
 
-func main() {
-	// Initialize database
-	initDB()
+func setupRouter() *gin.Engine {
+	// Initialize services
+	helloService := services.NewHelloService()
+
+	// Initialize controllers
+	helloController := controllers.NewHelloController(helloService)
 
 	// Create Gin router
 	r := gin.Default()
 
-	// Define routes
-	r.GET("/", func(c *gin.Context) {
+	// Set up routes
+	helloController.RegisterRoutes(r)
+
+	// Health check endpoint
+	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": "Hello World!",
+			"status": "ok",
 		})
 	})
 
+	return r
+}
+
+func main() {
+	// Initialize database
+	initDB()
+
+	// Set Gin mode
+	if os.Getenv("GIN_MODE") != "release" {
+		gin.SetMode(gin.DebugMode)
+	}
+
+	// Setup router
+	r := setupRouter()
+
 	// Start server
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal("Failed to start server:", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server starting on port %s...\n", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("Failed to start server: %v\n", err)
 	}
 }
