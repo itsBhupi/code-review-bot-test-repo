@@ -20,12 +20,30 @@ func NewHelloController(helloService *services.HelloService) *HelloController {
 }
 
 // RegisterRoutes registers the routes for HelloController
-func (c *HelloController) RegisterRoutes(router *gin.Engine) {
+func (c *HelloController) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/hello", c.getHello)
+	router.GET("/hello/:name", c.getPersonalizedHello)
 }
 
 // getHello handles GET /hello
 func (c *HelloController) getHello(ctx *gin.Context) {
 	message := c.helloService.GetHelloMessage()
 	ctx.JSON(http.StatusOK, gin.H{"message": message})
+}
+
+// getPersonalizedHello handles GET /hello/:name
+func (c *HelloController) getPersonalizedHello(ctx *gin.Context) {
+	name := ctx.Param("name")
+	
+	message, err := c.helloService.GetPersonalizedGreeting(name)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	
+	ctx.JSON(http.StatusOK, gin.H{
+		"greeting": message,
+	})
 }
