@@ -1,79 +1,57 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
-// Global connection without proper management
-var connection *sql.DB
+type DBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
+}
 
-// No proper connection pooling configuration
-func ConnectDB() {
-	var err error
-	// Hardcoded connection string with credentials
-	connection, err = sql.Open("mysql", "admin:admin123@tcp(prod-server:3306)/production")
+func NewDBConfig() DBConfig {
+	return DBConfig{
+		Host:     getEnv("DB_HOST", "localhost"),
+		Port:     getEnv("DB_PORT", "5432"),
+		User:     getEnv("DB_USER", "postgres"),
+		Password: getEnv("DB_PASSWORD", ""),
+		DBName:   getEnv("DB_NAME", "test_db"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
+	}
+}
+
+func (c DBConfig) DSN() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode)
+}
+
+func ConnectDB(ctx context.Context) (*sql.DB, error) {
+	config := NewDBConfig()
+	db, err := sql.Open("postgres", config.DSN())
 	if err != nil {
-		panic(err) // Using panic instead of proper error handling
-	}
-	// No ping to verify connection
-	// No connection pool settings
-}
-
-// No transaction handling, resource leaks
-func UpdateUserBalance(userID int, amount float64) error {
-	// No input validation
-	// No prepared statement - SQL injection risk
-	query1 := fmt.Sprintf("UPDATE accounts SET balance = balance + %f WHERE user_id = %d", amount, userID)
-	query2 := fmt.Sprintf("INSERT INTO transactions (user_id, amount) VALUES (%d, %f)", userID, amount)
-
-	// No transaction - operations can fail independently
-	_, err1 := connection.Exec(query1)
-	_, err2 := connection.Exec(query2)
-
-	// Poor error handling - only checking last error
-	if err2 != nil {
-		return err2
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	// Ignoring first error
-	_ = err1
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	return nil
-}
-
-// Memory leak - not closing rows
-func GetAllUsers() []map[string]interface{} {
-	// No context, no timeout
-	rows, err := connection.Query("SELECT * FROM users")
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-	// Missing defer rows.Close()
-
-	var users []map[string]interface{}
-
-	// No proper error handling in loop
-	for rows.Next() {
-		var id int
-		var name, email string
-		rows.Scan(&id, &name, &email) // Ignoring scan errors
-
-		user := map[string]interface{}{
-			"id":    id,
-			"name":  name,
-			"email": email,
-		}
-		users = append(users, user)
+	// Verify connection
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return users
-}
-
-// No connection lifecycle management
-func CloseDB() {
-	// No error handling for close operation
-	connection.Close()
+	log.Info().Msg("Database connection established successfully")
+	return db, nil
 }
