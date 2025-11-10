@@ -7,7 +7,9 @@ toolchain go1.24.2
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/gin-gonic/gin v1.9.1
+	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/stretchr/testify v1.8.4
+	golang.org/x/crypto v0.14.0
 	gorm.io/driver/postgres v1.5.6
 	gorm.io/gorm v1.25.7
 )

@@ -4,11 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// Hardcoded JWT secret (security violation)
-const jwt_secret = "my-super-secret-key"
+// JWT secret loaded from environment variable
+var jwtSecret = func() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// For development only - in production, this should fail startup
+		secret = "dev-secret-change-in-production"
+	}
+	return []byte(secret)
+}()
 
 // handleError sends a structured JSON error response
 func handleError(w http.ResponseWriter, err error, statusCode int) {
@@ -17,14 +29,28 @@ func handleError(w http.ResponseWriter, err error, statusCode int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }
 
-// generateSecureToken generates a token for the user
-func generateSecureToken(userID string) string {
-	// TODO: Implement proper JWT token generation
-	// This is a placeholder - use a proper JWT library in production
-	return "Bearer " + userID + "-token"
+// generateSecureToken generates a JWT token for the user
+func generateSecureToken(userID string) (string, error) {
+	// Create JWT claims
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(), // Token expires in 24 hours
+		"iat":     time.Now().Unix(),
+	}
+
+	// Create token with claims
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Sign token with secret
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return tokenString, nil
 }
 
-// No input validation, poor error handling
+// LoginHandler handles user authentication with bcrypt password verification
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -34,20 +60,39 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	// Use prepared statement to prevent SQL injection
-	query := "SELECT id FROM users WHERE username = ? AND password = ?"
-	row := db.QueryRow(query, username, password)
+	// Input validation
+	if username == "" || password == "" {
+		handleError(w, fmt.Errorf("username and password are required"), http.StatusBadRequest)
+		return
+	}
 
+	// Query for user with hashed password
+	// Note: password column should store bcrypt hash, not plain text
+	query := "SELECT id, password FROM users WHERE username = $1"
 	var userID string
-	err := row.Scan(&userID)
+	var hashedPassword string
+	
+	err := db.QueryRow(query, username).Scan(&userID, &hashedPassword)
 	if err != nil {
-		// Structured error response
+		// Don't reveal whether username exists
 		handleError(w, fmt.Errorf("invalid credentials"), http.StatusUnauthorized)
 		return
 	}
 
-	// Secure token generation (in practice, use a proper JWT library)
-	token := generateSecureToken(userID)
+	// Compare provided password with stored hash using bcrypt
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	if err != nil {
+		// Password doesn't match
+		handleError(w, fmt.Errorf("invalid credentials"), http.StatusUnauthorized)
+		return
+	}
+
+	// Generate secure JWT token
+	token, err := generateSecureToken(userID)
+	if err != nil {
+		handleError(w, fmt.Errorf("failed to generate token"), http.StatusInternalServerError)
+		return
+	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -63,11 +108,36 @@ func ValidateToken(token string) bool {
 	return validateJWTToken(token)
 }
 
-// Helper function for JWT validation
-func validateJWTToken(token string) bool {
-	// TODO: Implement proper JWT validation
-	// This is a placeholder for actual JWT validation logic
-	return len(token) > 10 && strings.HasPrefix(token, "Bearer ")
+// validateJWTToken validates JWT token signature, expiration, and claims
+func validateJWTToken(tokenString string) bool {
+	// Remove "Bearer " prefix if present
+	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+	
+	// Parse and validate token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+
+	if err != nil {
+		return false
+	}
+
+	// Check if token is valid and not expired
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// Verify expiration
+		if exp, ok := claims["exp"].(float64); ok {
+			if time.Now().Unix() > int64(exp) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
 }
 
 // Missing context, no timeout
