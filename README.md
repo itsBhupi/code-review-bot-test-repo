@@ -138,12 +138,31 @@ This application implements secure authentication with industry best practices:
   - Passwords are hashed using bcrypt before storage
   - Bcrypt cost factor: 10 (default)
   - Constant-time password comparison to prevent timing attacks
+  - Strong password requirements enforced:
+    - Minimum 8 characters, maximum 128 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    - At least one special character
   
 - **JWT Token Management**:
   - Tokens are signed using HMAC-SHA256
   - JWT secret loaded from `JWT_SECRET` environment variable
   - Tokens expire after 24 hours
   - Full signature and expiration validation on every request
+
+- **Input Validation**:
+  - Username validation (3-50 characters, alphanumeric with underscore/hyphen)
+  - Password strength requirements enforced
+  - Input trimming to prevent whitespace issues
+  - Sanitization of all user inputs
+
+- **Rate Limiting**:
+  - Login attempts rate limited by IP address
+  - Maximum 5 attempts per 15-minute window
+  - 30-minute block after exceeding limit
+  - Automatic cleanup of old records
+  - Supports X-Forwarded-For and X-Real-IP headers for proxy/load balancer compatibility
 
 ### Environment Variables
 
@@ -169,14 +188,48 @@ Example of creating a user with a properly hashed password:
 ```go
 import "code-review-bot-test-repo/utils"
 
+// Validate password strength
+if err := utils.ValidatePassword("MyP@ssw0rd!"); err != nil {
+    log.Fatal(err)  // Will fail if password doesn't meet requirements
+}
+
 // Hash the password
-hashedPassword, err := utils.HashPassword("user-plain-password")
+hashedPassword, err := utils.HashPassword("MyP@ssw0rd!")
 if err != nil {
     log.Fatal(err)
 }
 
 // Store hashedPassword in database
 // INSERT INTO users (username, password) VALUES ('john', hashedPassword)
+```
+
+### User Registration Endpoint
+
+Use the `RegisterHandler` which automatically enforces password strength requirements:
+
+```bash
+# Register a new user
+curl -X POST http://localhost:8080/api/register \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=johndoe&password=MyP@ssw0rd!"
+```
+
+### Login with Rate Limiting
+
+The login endpoint is protected with rate limiting (5 attempts per 15 minutes):
+
+```bash
+# Login
+curl -X POST http://localhost:8080/api/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=johndoe&password=MyP@ssw0rd!"
+```
+
+Response on too many attempts:
+```json
+{
+  "error": "too many login attempts, please try again later"
+}
 ```
 
  
