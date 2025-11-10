@@ -128,4 +128,55 @@ go test -cover ./...
 # Run tests with verbose output
 go test -v ./...
 ```
+
+## Security Features
+
+### Authentication
+This application implements secure authentication with industry best practices:
+
+- **Password Security**: 
+  - Passwords are hashed using bcrypt before storage
+  - Bcrypt cost factor: 10 (default)
+  - Constant-time password comparison to prevent timing attacks
+  
+- **JWT Token Management**:
+  - Tokens are signed using HMAC-SHA256
+  - JWT secret loaded from `JWT_SECRET` environment variable
+  - Tokens expire after 24 hours
+  - Full signature and expiration validation on every request
+
+### Environment Variables
+
+Set these environment variables for production:
+
+```bash
+# Required in production
+export JWT_SECRET="your-secret-key-min-32-chars"
+
+# Database configuration
+export DB_HOST="localhost"
+export DB_PORT="5432"
+export DB_USER="postgres"
+export DB_PASSWORD="your-db-password"
+export DB_NAME="test_db"
+export DB_SSLMODE="require"  # Use 'require' in production
+```
+
+### Creating Users with Hashed Passwords
+
+Example of creating a user with a properly hashed password:
+
+```go
+import "code-review-bot-test-repo/utils"
+
+// Hash the password
+hashedPassword, err := utils.HashPassword("user-plain-password")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Store hashedPassword in database
+// INSERT INTO users (username, password) VALUES ('john', hashedPassword)
+```
+
  
