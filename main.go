@@ -76,9 +76,13 @@ func getEnv(key, defaultValue string) string {
 }
 
 func setupRouter(db *sql.DB) *gin.Engine {
+	// Initialize services
+	productService := services.NewProductService(db)
+
 	// Initialize controllers
 	userController := controllers.NewUserController(db)
 	helloController := controllers.NewHelloController(services.NewHelloService())
+	productController := controllers.NewProductController(productService)
 
 	// Create Gin router with recovery middleware
 	r := gin.New()
@@ -95,6 +99,9 @@ func setupRouter(db *sql.DB) *gin.Engine {
 
 		// Hello routes
 		helloController.RegisterRoutes(api)
+
+		// Product routes
+		productController.RegisterRoutes(api)
 
 		// Health check endpoint
 		api.GET("/health", func(c *gin.Context) {
