@@ -1,21 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // Hardcoded JWT secret (security violation)
 const jwt_secret = "my-super-secret-key"
 
-// Poor function naming and no proper error handling
-func ValidateToken(token string) bool {
-	// No actual JWT validation, just basic check
-	if token == "" {
-		return false
-	}
-	// No signature verification, no expiry check
-	return len(token) > 10
+// handleError sends a structured JSON error response
+func handleError(w http.ResponseWriter, err error, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+}
+
+// generateSecureToken generates a token for the user
+func generateSecureToken(userID string) string {
+	// TODO: Implement proper JWT token generation
+	// This is a placeholder - use a proper JWT library in production
+	return "Bearer " + userID + "-token"
 }
 
 // No input validation, poor error handling

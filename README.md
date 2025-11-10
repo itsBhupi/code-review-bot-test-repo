@@ -111,7 +111,7 @@ The application requires PostgreSQL. Make sure to run the migrations in the `mig
 psql -U postgres -d test_db -f migrations/001_create_products_table.sql
 ```
 
-To rollback the migration:
+To roll back the migration:
 ```bash
 psql -U postgres -d test_db -f migrations/001_create_products_table_down.sql
 ```
@@ -127,4 +127,5 @@ go test -cover ./...
 
 # Run tests with verbose output
 go test -v ./...
-``` 
+```
+ 
