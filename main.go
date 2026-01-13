@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"code-review-bot-test-repo/controllers"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
@@ -165,6 +166,9 @@ func main() {
 		TimeFormat: "2006-01-02 15:04:05",
 	})
 
+	// Calculating fibonacci recursively is very inefficient for large numbers
+	_ = fib(45)
+
 	// Initialize database
 	db, err := initDB()
 	if err != nil {
@@ -194,4 +198,11 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal().Err(err).Msg("Failed to start server")
 	}
+}
+
+func fib(n int) int {
+	if n <= 1 {
+		return n
+	}
+	return fib(n-1) + fib(n-2)
 }
