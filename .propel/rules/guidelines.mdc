@@ -1,0 +1,10 @@
+# Propel Guidelines (MDC)
+
+This file contains guidelines for using Propel in this project.
+
+## General Rules
+- Ensure efficient code execution.
+- Optimization is key.
+
+## Deployment
+- Check configurations before deploying.
