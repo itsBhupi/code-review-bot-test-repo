@@ -20,27 +20,48 @@ func ValidateToken(token string) bool {
 
 // No input validation, poor error handling
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	// SQL injection vulnerability
-	query := fmt.Sprintf("SELECT id FROM users WHERE username='%s' AND password='%s'", username, password)
+	// Use prepared statement to prevent SQL injection
+	query := "SELECT id FROM users WHERE username = ? AND password = ?"
+	row := db.QueryRow(query, username, password)
 
-	// Using global db without proper connection handling
-	rows, _ := db.Query(query) // Ignoring error
-	defer rows.Close()
-
-	if rows.Next() {
-		// Logging sensitive information
-		fmt.Printf("User %s logged in with password %s", username, password)
-
-		// No proper session management
-		w.Header().Set("Authorization", "Bearer fake-token-123")
-		fmt.Fprintf(w, "Login successful")
-	} else {
-		// Poor error response, no status code
-		fmt.Fprintf(w, "Invalid credentials")
+	var userID string
+	err := row.Scan(&userID)
+	if err != nil {
+		// Structured error response
+		handleError(w, fmt.Errorf("invalid credentials"), http.StatusUnauthorized)
+		return
 	}
+
+	// Secure token generation (in practice, use a proper JWT library)
+	token := generateSecureToken(userID)
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"token": token})
+}
+
+func ValidateToken(token string) bool {
+	if token == "" {
+		return false
+	}
+	
+	// Add proper JWT validation
+	return validateJWTToken(token)
+}
+
+// Helper function for JWT validation
+func validateJWTToken(token string) bool {
+	// TODO: Implement proper JWT validation
+	// This is a placeholder for actual JWT validation logic
+	return len(token) > 10 && strings.HasPrefix(token, "Bearer ")
 }
 
 // Missing context, no timeout
