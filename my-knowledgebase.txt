@@ -1,0 +1,130 @@
+# Go Backend Project Rules
+
+## Project Context
+This is a Go backend service using standard Go practices and common patterns for web APIs, microservices, and database operations.
+
+## Go Language Standards
+- Follow official Go formatting with gofmt
+- Use Go modules for dependency management
+- Follow effective Go guidelines and Go proverbs
+- Use meaningful package names (short, lowercase, no underscores)
+- Prefer composition over inheritance
+- Handle errors explicitly, don't ignore them
+- Use context.Context for cancellation and timeouts
+- Follow Go naming conventions (PascalCase for exported, camelCase for unexported)
+
+## Code Organization
+- Use standard Go project layout structure
+- Place main applications in /cmd directory
+- Put reusable application code in /internal directory
+- External APIs and libraries go in /pkg directory
+- Configuration files in /configs directory
+- Database migrations in /migrations directory
+- Documentation in /docs directory
+- Scripts in /scripts directory
+
+## Error Handling
+- Always handle errors explicitly
+- Use custom error types when appropriate
+- Wrap errors with context using fmt.Errorf or errors package
+- Log errors at the appropriate level
+- Return meaningful error messages to clients
+- Use sentinel errors for expected error conditions
+
+## HTTP and API Design
+- Use standard HTTP status codes appropriately
+- Follow RESTful API conventions
+- Use middleware for cross-cutting concerns (logging, auth, CORS)
+- Validate input data thoroughly
+- Use proper HTTP methods (GET, POST, PUT, DELETE, PATCH)
+- Return consistent JSON response formats
+- Include proper error responses with meaningful messages
+
+## Database Practices
+- Use connection pooling appropriately
+- Handle database transactions properly
+- Use prepared statements to prevent SQL injection
+- Implement proper database migrations
+- Use context for database operations with timeouts
+- Close database connections and rows properly
+- Handle database errors gracefully
+
+## Testing
+- Write table-driven tests when appropriate
+- Use testify for assertions and mocking
+- Test both success and error cases
+- Use test helpers to reduce code duplication
+- Mock external dependencies in tests
+- Use build tags for integration tests
+- Aim for good test coverage on business logic
+
+## Logging
+- Use structured logging (logrus, zap, or slog)
+- Include relevant context in log messages
+- Use appropriate log levels (debug, info, warn, error)
+- Don't log sensitive information
+- Include request IDs for tracing
+
+## Security
+- Validate and sanitize all input
+- Use HTTPS in production
+- Implement proper authentication and authorization
+- Store secrets securely (environment variables, secret managers)
+- Hash passwords using bcrypt or similar
+- Implement rate limiting
+- Use CORS appropriately
+- Validate JWT tokens properly
+
+## Performance
+- Use connection pooling for databases and HTTP clients
+- Implement caching where appropriate
+- Use goroutines and channels for concurrent operations
+- Profile code for performance bottlenecks
+- Use context for cancellation and timeouts
+- Avoid memory leaks with proper resource cleanup
+
+## Dependencies
+- Keep dependencies minimal and well-maintained
+- Use go mod tidy regularly
+- Pin dependency versions for reproducible builds
+- Prefer standard library when possible
+- Review third-party dependencies for security
+
+## Configuration
+- Use environment variables for configuration
+- Provide sensible defaults
+- Validate configuration on startup
+- Use configuration structs with proper tags
+- Support different environments (dev, staging, prod)
+
+## Documentation
+- Write clear and concise comments
+- Document exported functions and types
+- Use godoc conventions
+- Include examples in documentation when helpful
+- Keep README.md updated with setup and usage instructions
+
+## Code Style Preferences
+- Use early returns to reduce nesting
+- Keep functions small and focused
+- Use descriptive variable names
+- Group related functionality into packages
+- Use constants for magic numbers and strings
+- Implement String() method for custom types when appropriate
+- Use type aliases sparingly and meaningfully
+
+## Common Patterns to Follow
+- Repository pattern for data access
+- Service layer for business logic
+- Handler pattern for HTTP endpoints
+- Factory pattern for complex object creation
+- Options pattern for configuration
+- Builder pattern for complex structs
+
+## Avoid These Patterns
+- Don't use panic() except in truly exceptional cases
+- Avoid empty catch blocks or ignored errors
+- Don't use global variables unless absolutely necessary
+- Avoid deep nesting; prefer early returns
+- Don't use init() functions unless necessary
+- Avoid premature optimization
