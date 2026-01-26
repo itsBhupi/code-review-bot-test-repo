@@ -74,3 +74,13 @@ return fmt.Errorf("failed to update user email")
 }
 return nil
 }
+
+func (s *user_service) Get_User_Status(userID int) (string, error) {
+	var status string
+	err := s.db.QueryRow("SELECT status FROM users WHERE id = ?", userID).Scan(&status)
+	if err != nil {
+		log.Printf("Failed to get user status: %v", err)
+		return "", err
+	}
+	return status, nil
+}
